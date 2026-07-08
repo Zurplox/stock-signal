@@ -1,0 +1,25 @@
+name: Daily stock signals
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"   # 21:00 UTC, Mon-Fri (after US close)
+  workflow_dispatch:          # lets you run it manually too
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python stock_signal.py TSLA AAPL NVDA MSFT > report.txt
+      - name: Save report
+        run: |
+          git config user.name  "github-actions"
+          git config user.email "actions@github.com"
+          git add report.txt
+          git commit -m "Daily signals $(date -u +%F)" || echo "no changes"
+          git push
