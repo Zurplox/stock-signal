@@ -1,84 +1,84 @@
-# Stock Signal 📈
+# ⚡ Day-Trading Signal Engine
 
-Automated 6-step stock analysis that turns a ticker (e.g. `TSLA`) into a
-**BUY / SELL / HOLD** recommendation with a built-in risk plan (entry, stop-loss,
-target, position size, and max loss).
+A non-stop intraday co-pilot. It watches the tickers you choose, analyzes each
+one every cycle on **5-minute bars**, and tells you **BUY / SELL / HOLD** with a
+built-in risk plan. It writes a **live dashboard** (`report.html`) that
+auto-refreshes in your browser, and prints an **alert** whenever a ticker's
+signal flips.
 
-> ⚠️ **Educational use only. Not financial advice.** Signals are decision-support,
-> not guarantees. Backtest first, start with tiny position sizes, and never risk
-> money you can't afford to lose. Always use a stop-loss.
+> **Educational use only — not financial advice.** Day trading is high risk.
+> The tool never places trades; you stay in full control. Always use a stop-loss.
 
-## What it does (the 6 steps)
+---
 
-1. **Scan / ingest** – pulls ~2 years of daily price data for the ticker and SPY.
-2. **Trend analysis** – 50/150/200-day moving averages, Minervini Trend Template,
-   and Weinstein market phase (1–4).
-3. **Momentum analysis** – RSI(14), MACD, and volume confirmation.
-4. **Relative strength** – compares the stock's 3-month return vs SPY.
-5. **Risk engine** – ATR-based stop-loss, 1% account-risk position sizing, and a
-   minimum 2:1 reward/risk check.
-6. **Decision** – combines everything into a weighted score → BUY / SELL / HOLD.
+## The 6 steps it runs on every ticker, every cycle
 
-## Setup
+1. **Scan** – pull fresh intraday (5-min) data + the SPY benchmark.
+2. **Trend** – VWAP (above/below) and EMA9 vs EMA20.
+3. **Momentum** – RSI(14), MACD, relative volume, 30-min opening-range breakout.
+4. **Relative strength** – today's move vs SPY.
+5. **Risk engine** – ATR-based stop, 2:1 target, position size so one loss ≈ 1% of your account.
+6. **Decision** – a weighted score → BUY / SELL / HOLD.
 
-You need [Python 3.10+](https://www.python.org/downloads/) installed.
+---
+
+## Run it (this is the best way for non-stop day trading)
 
 ```bash
-# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Run it
-python stock_signal.py TSLA
-
-# Analyze several at once
-python stock_signal.py TSLA AAPL NVDA
+# loop forever, refresh every 60s (default), watch these tickers:
+python day_trader.py TSLA AAPL NVDA MSFT
 ```
 
-## Configure your risk (top of `stock_signal.py`)
+Then open **`report.html`** in your browser. It refreshes itself — keep it on a
+second monitor. Press **Ctrl+C** in the terminal to stop.
 
-| Setting | Meaning | Default |
+### Options
+
+```bash
+python day_trader.py --interval 30 TSLA AAPL   # refresh every 30 seconds
+python day_trader.py --bar 1m TSLA             # use 1-minute bars
+python day_trader.py --once TSLA               # single pass, then exit
+```
+
+### Make it yours (top of `day_trader.py`)
+
+| Setting | Default | Meaning |
 |---|---|---|
-| `ACCOUNT_SIZE` | Your total capital | `10_000` |
-| `RISK_PER_TRADE` | Fraction of account risked per trade | `0.01` (1%) |
-| `MIN_RR` | Minimum reward-to-risk ratio to allow a BUY | `2.0` |
-| `ATR_MULT` | Stop-loss distance = this × ATR | `2.0` |
-| `BENCHMARK` | Market benchmark for relative strength | `"SPY"` |
+| `ACCOUNT_SIZE` | `10_000` | your capital |
+| `RISK_PER_TRADE` | `0.01` | risk 1% per trade (safest) |
+| `MIN_RR` | `2.0` | reward:risk target |
+| `ATR_MULT` | `1.5` | how tight the stop is |
+| `BAR` | `5m` | intraday bar size |
 
-## Automate it for free (GitHub Actions)
+---
 
-This repo includes `.github/workflows/daily.yml`, which runs the scan every
-weekday after the US market close and commits a `report.txt` to the repo.
+## Local vs GitHub — which should I use?
 
-1. Push this repo to GitHub.
-2. Go to **Settings → Actions → General → Workflow permissions** and enable
-   **Read and write permissions** (so it can commit the report).
-3. Edit the ticker list on the `python stock_signal.py ...` line in the workflow.
-4. Trigger it anytime from the **Actions** tab → **Daily stock signals** →
-   **Run workflow**.
+**For non-stop day trading, run locally.** GitHub Actions cannot run truly
+continuously (its schedule fires at most every ~5 minutes and is often delayed),
+so it can't keep up with fast intraday moves.
 
-## Example output
+The included workflow (`.github/workflows/daily.yml`) is an optional cloud
+fallback: during US market hours it runs one pass every ~5 minutes and commits
+`report.html`. Handy if your computer is off, but the local loop is faster and
+more reliable for active trading.
 
-```
-============================================================
- TSLA  ->  HOLD / WAIT   (score 6)
-============================================================
- Phase:            Phase 2 (uptrend)
- Trend template:   6/7 criteria passed
- RSI(14):          58.3   MACD bullish: True   Vol confirm: False
- Rel. strength 3m: stock 12.4% vs SPY 4.1%  (outperform: True)
- --- Risk plan (risk 1% of $10,000) ---
- Entry: $250.12   Stop: $232.40   Target: $285.56
- Reward:Risk: 2.0:1   Buy 5 shares ($1,250.60)
- Max loss if stopped out: $100.0
-```
+---
 
-## Ideas for later
+## Upload to GitHub (optional)
 
-- Send the report to Telegram / email / Slack.
-- Add fundamentals (revenue/EPS growth, margins) as an extra filter.
-- Add news/sentiment analysis.
-- Backtest the rules on history with `backtesting.py` or `backtrader`.
+1. Create a new empty repo (e.g. `day-trader`).
+2. **Add file → Upload files** → drag in everything from this folder → **Commit**.
+3. To use the cloud fallback: **Actions** tab → enable workflows → **Run workflow**.
+4. (Optional) enable **Settings → Pages** to view `report.html` online.
 
-## License
+---
 
-MIT
+## How to read a card
+
+- **Score** – higher = stronger long setup. BUY needs a strong score *and* price above VWAP.
+- **Chips** – green = supportive (Above VWAP, EMA9>EMA20, MACD↑, ORB breakout, Beats SPY).
+- **Price plan** – Stop (red) · Entry (blue) · Target (green), sized to a 2:1 reward:risk.
+- **Risk footer** – shares to buy, position value, and max loss (≈1% of your account).
